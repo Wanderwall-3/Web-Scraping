@@ -64,46 +64,107 @@
 #         con.rollback()
 #         browser.close()
 
-from playwright.sync_api import  sync_playwright as playwright
-from os import system
-import psycopg2 as psql
+# from playwright.sync_api import  sync_playwright as playwright
+# from os import system
+# import psycopg2 as psql
 
-with playwright() as p:
-    browser = p.chromium.launch(
+# with playwright() as p:
+#     browser = p.chromium.launch(
+#         headless = True,
+#         args = ["--start-maximized"]
+#     )
+    
+#     context = browser.new_context(
+#         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0",
+#         viewport = None
+#     )
+    
+#     try:
+#         con = psql.connect(
+#             host = "localhost",
+#             user = "postgres",
+#             password = "wanderwall420.,.",
+#             database = "demo",
+#             port = "5432"
+#         )
+#         cur = con.cursor()
+#     except Exception as e:
+#         print(e)
+        
+#     try:
+#         page = context.new_page()
+#         page.goto("https://www.imdb.com/chart/top/?view=detailed", timeout=60000)
+#         print("Title : ", page.title())
+#         page.wait_for_selector("li.ipc-metadata-list-summary-item", timeout=60000)
+#         movies = page.query_selector_all(".ipc-metadata-list-summary-item")
+        
+#         for movie in movies:
+#             name = movie.query_selector(".ipc-title__text").inner_text()
+#             year_of_release = int(movie.query_selector(".dli-title-metadata-item").inner_text())
+#             rating = float(movie.query_selector(".ipc-rating-star--rating").inner_text())
+#             story = movie.query_selector(".ipc-html-content-inner-div").inner_text()
+#             director = movie.query_selector(".ipc-link--base").inner_text()
+#             print(name, year_of_release, rating, story, director)
+            
+#             cur.execute("insert into demo_movie (name, year_of_release, rating, story, director) values (%s, %s, %s, %s, %s)", (name, year_of_release, rating, story, director))
+#         con.commit()
+#         cur.close()
+#         con.close()
+        
+#     except Exception as e:
+#         con.rollback()
+#         cur.close()
+#         con.close()
+#         print(e)
+    
+from playwright.sync_api import sync_playwright
+import psycopg2 as psql
+from bs4 import BeautifulSoup
+
+with sync_playwright() as pw:
+    browser = pw.chromium.launch(
         headless = True,
-        args = ["--start-maximized"]
+        args = ["--start-maximize"]
     )
     
     context = browser.new_context(
-        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0",
-        viewport = None
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0",
+        viewport=None
     )
     
+    page = context.new_page()
+    
     try:
-        psql.connect(
-            host = "localhost",
-            user = "postgres",
-            password = "wanderwall420.,.",
-            database = "demo",
-            port = "5432"
-        )
-    except Exception as e:
-        print(e)
+        page.goto("https://www.imdb.com/chart/top/?view=detailed", timeout=60000)
+        try:
+            con = psql.connect(
+                host = "localhost",
+                user = "postgres",
+                password = "wanderwall420.,.",
+                database = "demo",
+                port = "5432"
+            )
+            cur = con.cursor()
+        except Exception as e:
+            print(e)
         
-    try:
-        page = context.new_page()
-        page.goto("https://www.imdb.com/chart/top/?view=detailed", timeout="60000")
-        print("Title : ", page.title())
-        movies = page.query_selector_all(".ipc-metadata-list-summary-item", timeout="60000")
+        movies = page.wait_for_selector(".ipc-metadata-list--base", timeout=60000)
+        movies = page.query_selector_all("li.ipc-metadata-list-summary-item")
         
+        print(len(movies))
         for movie in movies:
             name = movie.query_selector(".ipc-title__text").inner_text()
-            year_of_release = movie.query_selector(".dli-title-metadata-item").inner_text()
-            rating = movie.query_selector(".ipc-rating-star--rating").inner_text()
+            year_of_release = int(movie.query_selector(".dli-title-metadata-item").inner_text())
+            rating = float(movie.query_selector(".ipc-rating-star--rating").inner_text())
             story = movie.query_selector(".ipc-html-content-inner-div").inner_text()
             director = movie.query_selector(".ipc-link--base").inner_text()
-            print(name, year_of_release, rating, story, director)
-        
+            cur.execute("insert into demo_movie (name, year_of_release, rating, story, director) values (%s, %s, %s, %s, %s)", (name , year_of_release, rating, story, director))
+        con.commit()
+        cur.close()
+        con.close()
+            
     except Exception as e:
+        con.rollback()
+        cur.close()
+        con.close()
         print(e)
-    
